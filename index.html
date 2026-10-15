@@ -9,8 +9,49 @@ const names=['Atlanta Hawks','Boston Celtics','Brooklyn Nets','Charlotte Hornets
 const $=id=>document.getElementById(id);$('team').innerHTML=names.map(n=>'<option>'+n+'</option>').join('');$('team').value='Boston Celtics';
 let games=[];
 const day=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
-async function load(){ $('status').textContent='Loading NBA preseason scores…';try{const today=new Date(),y=today.getMonth()<6?today.getFullYear()-1:today.getFullYear();let tasks=[];for(let i=0;i<9;i++){let a=new Date(y,8,15+i*7),b=new Date(a);b.setDate(b.getDate()+6);tasks.push(fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates='+day(a)+'-'+day(b)+'&limit=200').then(r=>{if(!r.ok)throw Error('HTTP '+r.status);return r.json()}))}
-const batches=await Promise.all(tasks),map=new Map();for(const e of batches.flatMap(b=>b.events||[])){const c=e.competitions?.[0]?.competitors||[];if(c.length!==2)continue;if(e.season?.type!==1&&e.season?.slug!=='preseason')continue;map.set(e.id,{id:e.id,date:e.date,final:!!e.status?.type?.completed,teams:c.map(x=>({name:x.team?.displayName,score:Number(x.score||0)}))})}games=[...map.values()];$('status').textContent='Loaded '+games.length+' preseason games. Updated '+new Date().toLocaleTimeString();draw()}catch(e){$('status').textContent='Score feed unavailable: '+e.message+'. Try refreshing later.';$('recent').textContent='No verified scores available.';$('future').textContent='Schedule unavailable.';$('stats').innerHTML=''}}
+async function fetchScores(url){
+ const sources=[url,'https://api.allorigins.win/raw?url='+encodeURIComponent(url)];
+ let lastError;
+ for(const source of sources){try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);let response;try{response=await fetch(source,{signal:controller.signal,cache:'no-store'})}finally{clearTimeout(timer)}
+ if(!response.ok)throw Error('HTTP '+response.status);
+ const json=await response.json();if(!Array.isArray(json.events))throw Error('Invalid score response');return json
+ }catch(error){lastError=error}}
+ throw lastError||Error('No score source available')
+}
+async function load(){
+ $('refresh').disabled=true;$('status').textContent='Connecting to NBA score feed…';
+ try{
+ const today=new Date(),year=today.getMonth()<6?today.getFullYear()-1:today.getFullYear();
+ const endpoint='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
+ let batches=[];
+ // First try the season-wide preseason query, which avoids invalid date-range requests.
+ try{batches=[await fetchScores(endpoint+'?dates='+year+'&seasontype=1&limit=500')]}catch(err){
+ $('status').textContent='Season query unavailable; trying individual game dates…';
+ const dates=[];for(let d=new Date(year,8,25);d<=new Date(year,10,3);d.setDate(d.getDate()+1))dates.push(day(d));
+ // Individual YYYYMMDD dates are accepted by the ESPN scoreboard endpoint.
+ let failures=0;for(let i=0;i<dates.length;i+=5){
+ const chunk=await Promise.allSettled(dates.slice(i,i+5).map(dt=>fetchScores(endpoint+'?dates='+dt+'&limit=100')));
+ chunk.forEach(r=>{if(r.status==='fulfilled')batches.push(r.value);else failures++});
+ $('status').textContent='Checking preseason dates '+Math.min(i+5,dates.length)+'/'+dates.length+'…'
+ }
+ if(!batches.length)throw Error('ESPN and backup score feed are unreachable (HTTP/network error).');
+ }
+ const map=new Map();
+ for(const e of batches.flatMap(b=>b.events||[])){
+ const comp=e.competitions?.[0],cs=comp?.competitors||[];
+ if(cs.length!==2)continue;
+ const seasonType=e.season?.type??batches[0]?.leagues?.[0]?.season?.type;
+ if(seasonType!==1&&e.season?.slug!=='preseason')continue;
+ map.set(e.id,{id:e.id,date:e.date,final:!!e.status?.type?.completed,teams:cs.map(t=>({name:t.team?.displayName,score:Number(t.score||0)}))})
+ }
+ games=[...map.values()];
+ $('status').textContent='Loaded '+games.length+' preseason games • '+new Date().toLocaleTimeString()+(games.length===0?' • No preseason games returned for this season':'');
+ draw()
+ }catch(err){
+ $('status').textContent='Unable to retrieve NBA scores: '+err.message+'. Refresh to retry.';
+ $('recent').textContent='No verified scores available.';$('future').textContent='Schedule unavailable.';$('stats').innerHTML=''
+ }finally{$('refresh').disabled=false}
+}
 function draw(){let team=$('team').value,line=Number($('line').value),n=Number($('limit').value);if(!Number.isFinite(line)||line<0)return;let recent=games.filter(g=>g.final&&g.teams.some(t=>t.name===team)).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,n),pts=recent.map(g=>g.teams.find(t=>t.name===team).score),o=pts.filter(p=>p>line).length,u=pts.filter(p=>p<line).length,p=pts.length-o-u,avg=pts.length?(pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1):'—';let margins=recent.map(g=>{const t=g.teams.find(t=>t.name===team),v=g.teams.find(t=>t.name!==team);return t.score-v.score}),wins=margins.filter(v=>v>0).length,losses=margins.filter(v=>v<0).length,ties=margins.filter(v=>v===0).length,avgMargin=margins.length?(margins.reduce((a,b)=>a+b,0)/margins.length).toFixed(1):'—';let card=(label,value,detail,cls='')=>'<div class="panel"><div class="sub">'+label+'</div><div class="num '+cls+'">'+value+'</div><div class="tiny">'+detail+'</div></div>';$('stats').innerHTML=card('Average team points',avg,pts.length+' games')+card('Over '+line,pts.length?o+'/'+pts.length:'—',pts.length?Math.round(o/pts.length*100)+'% historical rate':'No data','green')+card('Under '+line,pts.length?u+'/'+pts.length:'—',pts.length?Math.round(u/pts.length*100)+'% historical rate':'No data','red')+card('Push',p,'Exactly equal to line')+card('Win / Loss',wins+' - '+losses,ties+' ties in '+recent.length+' games')+card('Average score margin',avgMargin,'Team points minus opponent points',Number(avgMargin)>0?'green':Number(avgMargin)<0?'red':'');
 $('recent').innerHTML=recent.length?recent.map(g=>{let t=g.teams.find(t=>t.name===team),other=g.teams.find(t=>t.name!==team),margin=t.score-other.score,result=margin>0?'WIN':margin<0?'LOSS':'TIE',color=margin>0?'win':margin<0?'loss':'tie',ou=t.score>line?'OVER':t.score<line?'UNDER':'PUSH';return '<div class="row"><div><div class="tiny">'+new Date(g.date).toLocaleDateString()+' • FINAL</div><div class="scoreline">'+t.name+' '+t.score+' – '+other.score+' '+other.name+'</div><div class="detail"><span class="result '+color+'">'+result+'</span> • Margin: '+(margin>0?'+':'')+margin+' pts • Team total: '+ou+' '+line+'</div></div><span class="chip '+color+'">'+result+'</span></div>'}).join(''):'<p class="sub">No completed preseason games found.</p>';
 let future=games.filter(g=>!g.final&&g.teams.some(t=>t.name===team)).sort((a,b)=>new Date(a.date)-new Date(b.date));$('future').innerHTML=future.length?future.map(g=>'<div class="row"><div>'+g.teams.map(t=>t.name).join(' vs ')+'<div class="tiny">'+new Date(g.date).toLocaleString()+'</div></div></div>').join(''):'<p class="sub">No upcoming preseason games found in this date range.</p>'}
