@@ -19,38 +19,38 @@ async function fetchScores(url){
  throw lastError||Error('No score source available')
 }
 async function load(){
- $('refresh').disabled=true;$('status').textContent='Connecting to NBA score feed…';
+ $('refresh').disabled=true;$('status').textContent='Checking 2026 preseason game dates…';
  try{
  const today=new Date(),year=today.getMonth()<6?today.getFullYear()-1:today.getFullYear();
  const endpoint='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
- let batches=[];
- // First try the season-wide preseason query, which avoids invalid date-range requests.
- try{batches=[await fetchScores(endpoint+'?dates='+year+'&seasontype=1&limit=500')]}catch(err){
- $('status').textContent='Season query unavailable; trying individual game dates…';
- const dates=[];for(let d=new Date(year,8,25);d<=new Date(year,10,3);d.setDate(d.getDate()+1))dates.push(day(d));
- // Individual YYYYMMDD dates are accepted by the ESPN scoreboard endpoint.
- let failures=0;for(let i=0;i<dates.length;i+=5){
- const chunk=await Promise.allSettled(dates.slice(i,i+5).map(dt=>fetchScores(endpoint+'?dates='+dt+'&limit=100')));
- chunk.forEach(r=>{if(r.status==='fulfilled')batches.push(r.value);else failures++});
- $('status').textContent='Checking preseason dates '+Math.min(i+5,dates.length)+'/'+dates.length+'…'
- }
- if(!batches.length)throw Error('ESPN and backup score feed are unreachable (HTTP/network error).');
- }
- const map=new Map();
- for(const e of batches.flatMap(b=>b.events||[])){
- const comp=e.competitions?.[0],cs=comp?.competitors||[];
+ const dates=[];for(let d=new Date(year,8,20);d<=new Date(year,10,5);d.setDate(d.getDate()+1))dates.push(day(d));
+ const map=new Map();let success=0,failed=0,eventsSeen=0;
+ // Fetch by actual calendar date. The ESPN dates=YYYY season query can return
+ // an HTTP 200 with an empty events array even when preseason games exist.
+ for(let i=0;i<dates.length;i+=6){
+ const chunk=await Promise.allSettled(dates.slice(i,i+6).map(dt=>fetchScores(endpoint+'?dates='+dt+'&limit=100')));
+ for(const r of chunk){
+ if(r.status!=='fulfilled'){failed++;continue}
+ success++;
+ for(const e of r.value.events||[]){
+ eventsSeen++;
+ const cs=e.competitions?.[0]?.competitors||[];
  if(cs.length!==2)continue;
- const seasonType=e.season?.type??e.competitions?.[0]?.type?.id??batches[0]?.leagues?.[0]?.season?.type;
- if(seasonType!==1&&e.season?.slug!=='preseason')continue;
+ // Calendar is limited to preseason; avoid dropping valid games when ESPN
+ // omits season.type in some scoreboard payloads.
+ const st=e.season?.type;
+ if(st!=null&&Number(st)!==1&&e.season?.slug!=='preseason')continue;
  map.set(e.id,{id:e.id,date:e.date,final:!!e.status?.type?.completed,teams:cs.map(t=>({name:t.team?.displayName,score:Number(t.score||0)}))})
  }
+ }
+ $('status').textContent='Checked '+Math.min(i+6,dates.length)+'/'+dates.length+' dates; found '+map.size+' games…';
+ }
+ if(!success)throw Error('All score requests failed. The score provider may be blocking browser access.');
  games=[...map.values()];
- $('status').textContent='Loaded '+games.length+' preseason games • '+new Date().toLocaleTimeString()+(games.length===0?' • No preseason games returned for this season':'');
- draw()
- }catch(err){
- $('status').textContent='Unable to retrieve NBA scores: '+err.message+'. Refresh to retry.';
- $('recent').textContent='No verified scores available.';$('future').textContent='Schedule unavailable.';$('stats').innerHTML=''
- }finally{$('refresh').disabled=false}
+ $('status').textContent='Loaded '+games.length+' preseason games ('+success+' dates checked successfully'+(failed?', '+failed+' failed':'')+'). Updated '+new Date().toLocaleTimeString()+(games.length===0?' • ESPN returned '+eventsSeen+' events; no preseason games matched.':'');
+ draw();
+ }catch(err){$('status').textContent='Unable to retrieve scores: '+err.message;$('recent').textContent='No verified scores available.';$('future').textContent='Schedule unavailable.';$('stats').innerHTML=''}
+ finally{$('refresh').disabled=false}
 }
 function draw(){let team=$('team').value,line=Number($('line').value),n=Number($('limit').value);if(!Number.isFinite(line)||line<0)return;let recent=games.filter(g=>g.final&&g.teams.some(t=>t.name===team)).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,n),pts=recent.map(g=>g.teams.find(t=>t.name===team).score),o=pts.filter(p=>p>line).length,u=pts.filter(p=>p<line).length,p=pts.length-o-u,avg=pts.length?(pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1):'—';let margins=recent.map(g=>{const t=g.teams.find(t=>t.name===team),v=g.teams.find(t=>t.name!==team);return t.score-v.score}),wins=margins.filter(v=>v>0).length,losses=margins.filter(v=>v<0).length,ties=margins.filter(v=>v===0).length,avgMargin=margins.length?(margins.reduce((a,b)=>a+b,0)/margins.length).toFixed(1):'—';let card=(label,value,detail,cls='')=>'<div class="panel"><div class="sub">'+label+'</div><div class="num '+cls+'">'+value+'</div><div class="tiny">'+detail+'</div></div>';$('stats').innerHTML=card('Average team points',avg,pts.length+' games')+card('Over '+line,pts.length?o+'/'+pts.length:'—',pts.length?Math.round(o/pts.length*100)+'% historical rate':'No data','green')+card('Under '+line,pts.length?u+'/'+pts.length:'—',pts.length?Math.round(u/pts.length*100)+'% historical rate':'No data','red')+card('Push',p,'Exactly equal to line')+card('Win / Loss',wins+' - '+losses,ties+' ties in '+recent.length+' games')+card('Average score margin',avgMargin,'Team points minus opponent points',Number(avgMargin)>0?'green':Number(avgMargin)<0?'red':'');
 $('recent').innerHTML=recent.length?recent.map(g=>{let t=g.teams.find(t=>t.name===team),other=g.teams.find(t=>t.name!==team),margin=t.score-other.score,result=margin>0?'WIN':margin<0?'LOSS':'TIE',color=margin>0?'win':margin<0?'loss':'tie',ou=t.score>line?'OVER':t.score<line?'UNDER':'PUSH';return '<div class="row"><div><div class="tiny">'+new Date(g.date).toLocaleDateString()+' • FINAL</div><div class="scoreline">'+t.name+' '+t.score+' – '+other.score+' '+other.name+'</div><div class="detail"><span class="result '+color+'">'+result+'</span> • Margin: '+(margin>0?'+':'')+margin+' pts • Team total: '+ou+' '+line+'</div></div><span class="chip '+color+'">'+result+'</span></div>'}).join(''):'<p class="sub">No completed preseason games found.</p>';
