@@ -54,14 +54,27 @@ async function load(){
 }
 
 function liveCard(g){
- const [a,b]=g.teams,margin=a.score-b.score,period=Math.max(1,Math.min(4,g.period||1)),elapsed=Math.max(0,Math.min(1,((period-1)*12+(12-(Number(String(g.clock||'12:00').split(':')[0])||0)))/48));
- // A transparent heuristic, NOT a calibrated win-probability model.
- const scale=13*Math.sqrt(Math.max(.08,1-elapsed));
+ const [a,b]=g.teams,margin=a.score-b.score,period=Math.max(1,Math.min(4,g.period||1));
+ const clockParts=String(g.clock||'12:00').split(':');
+ const minutesLeft=Math.max(0,Math.min(12,(Number(clockParts[0])||0)+(Number(clockParts[1])||0)/60));
+ const elapsed=Math.max(0,Math.min(48,(period-1)*12+(12-minutesLeft)));
+ const progress=elapsed/48;
+ const scale=13*Math.sqrt(Math.max(.08,1-progress));
  const p=100/(1+Math.exp(-margin/scale));
  const label=g.final?'FINAL':'LIVE Q'+period+' '+g.clock;
+ let projection='';
+ if(g.live&&!g.final&&elapsed>=2){
+  const rateA=a.score/elapsed,rateB=b.score/elapsed;
+  const remaining=Math.max(0,period*12-elapsed);
+  // Conservative pace extrapolation: use 75% observed pace, 25% league-neutral 2.7 points/min.
+  const paceA=.75*rateA+.25*2.7,paceB=.75*rateB+.25*2.7;
+  const qA=Math.round(a.score+remaining*paceA),qB=Math.round(b.score+remaining*paceB);
+  const fA=Math.round(a.score+(48-elapsed)*paceA),fB=Math.round(b.score+(48-elapsed)*paceB);
+  projection='<div class="prediction"><strong>⏱️ Projected End of Q'+period+'</strong><div class="detail">'+a.name+': <strong>'+qA+'</strong> · '+b.name+': <strong>'+qB+'</strong></div><div class="tiny">Projected quarter-end cumulative score · '+qA+' – '+qB+'</div><div class="detail" style="margin-top:9px"><strong>Projected Final Game Score:</strong> '+fA+' – '+fB+'</div><div class="tiny">Pace extrapolation from live points and elapsed minutes; assumes 12-minute quarters and 48-minute regulation. Does not model overtime, lineup changes or late-game strategy.</div></div>';
+ }else if(g.live&&!g.final){projection='<div class="tiny">Quarter-end projection available after 2 minutes of play.</div>'}
  return '<div class="prediction"><strong class="'+(g.final?'green':'red')+'">'+label+'</strong><div class="scoreline">'+a.name+' '+a.score+' – '+b.score+' '+b.name+'</div>'+
  (g.final?'<div class="detail">Result: '+(margin>0?a.name+' WIN':margin<0?b.name+' WIN':'TIE')+' · Final margin '+Math.abs(margin)+' pts</div>':
- '<div class="detail">Live estimated win chance: <strong>'+a.name+' '+p.toFixed(0)+'%</strong> · <strong>'+b.name+' '+(100-p).toFixed(0)+'%</strong></div><div class="tiny">Experimental score/time-based estimate, not an official or validated probability.</div>')+'</div>';
+ '<div class="detail">Live estimated win chance: <strong>'+a.name+' '+p.toFixed(0)+'%</strong> · <strong>'+b.name+' '+(100-p).toFixed(0)+'%</strong></div><div class="tiny">Experimental score/time-based estimate, not an official or validated probability.</div>'+projection)+'</div>';
 }
 async function updateLive(){
  try{
