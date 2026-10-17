@@ -47,6 +47,7 @@ function quarterView(){
  const relevant=games.filter(g=>g.live||g.final).sort((a,b)=>new Date(b.date)-new Date(a.date));
  $('quarterPredictions').innerHTML=relevant.length?relevant.map(g=>{
  const scores=quarterScores(g),records=Object.entries(pinned[String(g.id)]?.quarters||{}).sort((a,b)=>Number(a[0])-Number(b[0]));
+ const suggested=g.teams.map((t,i)=>suggestedTeamLine(t.name,g.teams[1-i].name,g.id));
  const rows=records.map(([q,r])=>{
  const n=Number(q),baseline=r.baseline||[0,0],cumulative=r.cumulativePred||(Array.isArray(r.pred)?r.pred.map((v,i)=>v+baseline[i]):null);
  const actual=r.actual,actualCumulative=actual&&scores.every(s=>s.length>=n)?scores.map(s=>s.slice(0,n).reduce((sum,v)=>sum+v,0)):null;
@@ -57,7 +58,7 @@ function quarterView(){
  '<div class="tiny">Includes points from Q1 through Q'+q+' (not only Q'+q+').</div>'+
  (real!==undefined?'<div class="detail">Actual cumulative score: '+real+' · Error '+Math.abs(predicted-real)+' pts</div>':'<div class="tiny">Awaiting end of quarter</div>')+
  (Number.isFinite(finalForecast)?'<div class="detail">Pinned projected FINAL team points: '+finalForecast+'</div>':'')+
- (valid&&Number.isFinite(finalForecast)?'<div class="detail">Final team total vs '+line+': '+(finalForecast<line?'UNDER':finalForecast>line?'OVER':'PUSH')+'</div>':'')+
+ (Number.isFinite(finalForecast)&&suggested[i]?'<div class="detail">Suggested line '+suggested[i].line.toFixed(1)+' ('+suggested[i].source+'): <strong>'+(finalForecast<suggested[i].line?'UNDER':finalForecast>suggested[i].line?'OVER':'PUSH')+'</strong></div>':'')+
  (g.final&&Number.isFinite(finalForecast)?'<div class="detail">Actual final team points: '+team.score+' · Error '+Math.abs(team.score-finalForecast)+'</div>':'')+'</div>';
  }).join(''):'<div class="tiny">Legacy pin has no cumulative forecast; new pins will include previous-quarter points.</div>';
  const correct=predTotal!==null&&actualTotal!==null?Math.abs(predTotal-actualTotal)<=5:null;
@@ -175,10 +176,22 @@ async function updateLive(){
  if(changed){games.forEach(trackQuarter);lastLiveUpdate=new Date();draw()}
  }catch(e){}
 }
+function suggestedTeamLine(team,opponent,excludeId){
+ const past=games.filter(g=>g.final&&g.id!==excludeId&&g.teams.some(t=>t.name===team)&&g.teams.every(t=>Number.isFinite(t.score)));
+ const direct=opponent?past.filter(g=>g.teams.some(t=>t.name===opponent)).sort((a,b)=>new Date(b.date)-new Date(a.date)):[];
+ const chosen=direct.length?direct.slice(0,1):past;
+ if(!chosen.length)return null;
+ const avg=chosen.reduce((sum,g)=>sum+g.teams.find(t=>t.name===team).score,0)/chosen.length;
+ const line=Math.max(.5,Math.round(avg)-.5);
+ return {line,source:direct.length?'Last head-to-head matchup':'All completed games this preseason',count:chosen.length,average:avg,last:direct[0]?.date||null};
+}
 function projectionFor(a,b){
+const lineA=suggestedTeamLine(a,b),lineB=suggestedTeamLine(b,a);
+ let html='<div class="prediction"><strong>🎯 Automatic Team Total Lines</strong><div class="tiny">Rematch: most recent direct matchup takes priority. Otherwise: all completed games this preseason.</div>'+
+ [ [a,lineA],[b,lineB] ].map(([name,r])=>'<div class="quartercard"><strong>'+name+'</strong><div class="detail">Suggested team total line: <strong>'+(r?r.line.toFixed(1):'Unavailable')+'</strong></div>'+(r?'<div class="tiny">'+r.source+' · '+r.count+' game(s) · Average '+r.average.toFixed(1)+' pts</div>':'<div class="tiny">No completed games for this team yet.</div>')+'</div>').join('')+'</div>';
  const history=name=>games.filter(g=>g.final&&g.teams.some(t=>t.name===name)&&g.teams.every(t=>Number.isFinite(t.score))).map(g=>{const t=g.teams.find(t=>t.name===name),opp=g.teams.find(t=>t.name!==name);return {scored:t.score,allowed:opp.score}});
  const x=history(a),y=history(b),avg=(arr,key)=>arr.reduce((sum,v)=>sum+v[key],0)/arr.length;
- let html='<div class="prediction"><strong>📊 Overall Team Performance Projection</strong><div class="tiny">All available previous preseason games against any opponent</div>';
+ html+='<div class="prediction"><strong>📊 Overall Team Performance Projection</strong><div class="tiny">All available previous preseason games against any opponent</div>';
  if(x.length&&y.length){
  const pa=(avg(x,'scored')+avg(y,'allowed'))/2,pb=(avg(y,'scored')+avg(x,'allowed'))/2;
  html+='<div class="detail">'+a+': <strong class="green">'+pa.toFixed(1)+' pts</strong></div><div class="detail">'+b+': <strong class="green">'+pb.toFixed(1)+' pts</strong></div><div class="detail">Projected final score: <strong>'+pa.toFixed(1)+' – '+pb.toFixed(1)+'</strong></div><div class="detail">Projected total: <strong>'+(pa+pb).toFixed(1)+' pts</strong></div><div class="tiny">Samples: '+x.length+' / '+y.length+' games</div>';
