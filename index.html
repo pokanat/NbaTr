@@ -154,19 +154,36 @@ function currentGameForecast(g){
 }
 function liveQuarterStats(g){
  const entry=pinned[String(g.id)],scores=quarterScores(g);
- if(!entry?.halftime)return currentGameForecast(g)+'<div class="tiny">No genuine halftime-locked forecast was saved for this game.</div>';
- let html='<div class="prediction"><strong>🔒 Halftime-Locked Team Predictions</strong>';
- for(const q of [3,4]){
-  const r=entry.quarters[q];if(!r)continue;
-  html+='<div class="quartercard"><strong>End of Q'+q+' cumulative team scores</strong>';
-  for(let i=0;i<2;i++){
-   const predicted=r.cumulativePred[i],actual=r.actual?.[i],line=entry.halftime.lines[i];
-   html+='<div class="detail">'+g.teams[i].name+': <strong>'+predicted+' pts</strong> (includes Q1 and Q2)</div>'+
-   (q===4&&Number.isFinite(line)?'<div class="tiny">Team total line '+line+': '+(predicted>line?'OVER':predicted<line?'UNDER':'PUSH')+'</div>':'')+
-   (actual!==undefined?'<div class="detail '+(Math.abs(actual-predicted)<=5?'green':'red')+'">Actual '+actual+' · '+(Math.abs(actual-predicted)<=5?'CORRECT':'INCORRECT')+' (±5 pts)</div>':'<div class="tiny">Awaiting end of Q'+q+'</div>');
-  }html+='</div>';
+ // Historical halftime scores can be displayed even when the site was opened in Q4.
+ // Retrospective estimates are explicitly marked, never counted as pre-quarter predictions.
+ const hasHalf=scores.length===2&&scores.every(s=>s.length>=2&&Number.isFinite(s[0])&&Number.isFinite(s[1]));
+ if(!hasHalf&&!entry?.halftime)return '<div class="prediction"><strong>Halftime Score & Q3/Q4 Estimates</strong><div class="tiny">Quarter-by-quarter scoring is unavailable from the data provider. Cannot calculate halftime scores reliably from the Q4 total.</div></div>'+currentGameForecast(g);
+ const half=entry?.halftime?.scores||(hasHalf?scores.map(s=>s[0]+s[1]):null);
+ if(!half)return currentGameForecast(g);
+ const locked=!!entry?.halftime;
+ let forecasts;
+ if(locked)forecasts=[entry.quarters?.[3]?.cumulativePred,entry.quarters?.[4]?.cumulativePred];
+ else {
+  const history=g.teams.map(t=>{const past=games.filter(x=>x.final&&x.id!==g.id&&x.teams.some(v=>v.name===t.name));return past.length?past.reduce((s,x)=>s+x.teams.find(v=>v.name===t.name).score,0)/past.length:null});
+  const final=half.map((score,i)=>Math.round(.7*score*2+.3*(history[i]===null?score*2:history[i])));
+  forecasts=[final.map((v,i)=>Math.round(half[i]+(v-half[i])/2)),final];
  }
- return html+'<div class="tiny">Q3 and Q4 projections were both pinned at halftime; they do not update during the second half.</div></div>'+currentGameForecast(g);
+ let html='<div class="prediction"><strong>🏀 Halftime Score</strong><div class="scoreline">'+g.teams[0].name+' '+half[0]+' – '+half[1]+' '+g.teams[1].name+'</div><div class="tiny">Actual cumulative score at the end of Q2, from Q1 + Q2 scores.</div></div>';
+ html+='<div class="prediction"><strong>'+(locked?'🔒 Halftime-Locked Predictions':'📊 Retrospective Halftime-Based Estimates')+'</strong>';
+ for(let ix=0;ix<2;ix++){
+  const q=ix+3,pred=forecasts[ix];if(!pred)continue;
+  const actual=locked?entry.quarters?.[q]?.actual:(g.final||g.period>q)&&scores.every(s=>s.length>=q)?scores.map(s=>s.slice(0,q).reduce((a,b)=>a+b,0)):null;
+  html+='<div class="quartercard"><strong>End of Q'+q+' projected cumulative team points</strong>';
+  for(let i=0;i<2;i++){
+   const line=suggestedTeamLine(g.teams[i].name,g.teams[1-i].name,g.id)?.line;
+   html+='<div class="detail">'+g.teams[i].name+': <strong>'+pred[i]+' pts</strong></div>'+
+   (q===4&&Number.isFinite(line)?'<div class="tiny">vs automatic team line '+line+': '+(pred[i]>line?'OVER':pred[i]<line?'UNDER':'PUSH')+'</div>':'')+
+   (actual?'<div class="detail">Actual cumulative points: '+actual[i]+(locked?' · '+(Math.abs(pred[i]-actual[i])<=5?'CORRECT':'INCORRECT')+' (±5 pts)':'')+'</div>':'<div class="tiny">Awaiting quarter result</div>');
+  }
+  html+='</div>';
+ }
+ html+='<div class="tiny">'+(locked?'Predictions were pinned at halftime and will not change.':'These estimates were reconstructed after halftime using known halftime scores. They were NOT pinned beforehand and are excluded from prediction accuracy.')+'</div></div>';
+ return html+currentGameForecast(g);
 }
 function liveCard(g){
  const [a,b]=g.teams,margin=a.score-b.score,period=Math.max(1,Math.min(4,g.period||1));
