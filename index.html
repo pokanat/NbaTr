@@ -120,7 +120,7 @@ async function load(){
 
 function liveQuarterStats(g){
  const entry=pinned[String(g.id)],scores=quarterScores(g);
- if(!entry?.halftime)return '<div class="prediction"><strong>Halftime Prediction</strong><div class="tiny">Waiting for halftime. Predictions for Q3 and Q4 will be pinned together.</div></div>';
+ if(!entry?.halftime)return '<div class="prediction"><strong>Halftime Prediction</strong><div class="tiny">'+(g.period>=4?'Halftime lock was not captured. Q4 is in progress; a prediction cannot be backdated.':'Waiting for the halftime snapshot to pin Q3 and Q4 forecasts.')+'</div></div>';
  let html='<div class="prediction"><strong>🔒 Halftime-Locked Team Predictions</strong>';
  for(const q of [3,4]){
   const r=entry.quarters[q];if(!r)continue;
@@ -168,8 +168,8 @@ async function updateLive(){
  const cs=e.competitions?.[0]?.competitors||[];
  if(cs.length!==2)continue;
  const st=e.season?.type;if(st!=null&&Number(st)!==1&&e.season?.slug!=='preseason')continue;
- const g={id:e.id,date:e.date,final:!!e.status?.type?.completed,live:e.status?.type?.state==='in',period:Number(e.status?.period||0),clock:e.status?.displayClock||'',teams:cs.map(t=>({name:t.team?.displayName,score:Number(t.score||0)}))};
- const ix=games.findIndex(old=>old.id===g.id);if(ix>=0)games[ix]=g;else games.push(g);changed=true;
+ const g={id:e.id,date:e.date,final:!!e.status?.type?.completed,live:e.status?.type?.state==='in',period:Number(e.status?.period||0),clock:e.status?.displayClock||'',teams:cs.map(t=>({name:t.team?.displayName,score:Number(t.score||0),linescores:t.linescores||[]}))};
+ const ix=games.findIndex(old=>old.id===g.id);if(ix>=0){const previous=games[ix];g.teams.forEach(t=>{if(!t.linescores.length){const old=previous.teams.find(v=>v.name===t.name);if(old?.linescores?.length)t.linescores=old.linescores}});games[ix]=g}else games.push(g);changed=true;
  }}
  if(changed){games.forEach(trackQuarter);lastLiveUpdate=new Date();draw()}
  }catch(e){}
