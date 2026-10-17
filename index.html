@@ -10,7 +10,25 @@ const $=id=>document.getElementById(id);$('team').innerHTML=names.map(n=>'<optio
 let games=[];let lastLiveUpdate=null;
 let pinned={};try{pinned=JSON.parse(localStorage.getItem('nbatr-pinned-quarters-v1')||'{}')}catch(e){pinned={}}
 function savePins(){try{localStorage.setItem('nbatr-pinned-quarters-v1',JSON.stringify(pinned))}catch(e){}}
-function quarterScores(g){return g.teams.map(t=>Array.isArray(t.linescores)?t.linescores.map(s=>Number(s.value??s.score??s.displayValue??0)):[])}
+function quarterScores(g){return g.teams.map(t=>(Array.isArray(t.linescores)?t.linescores:[]).map(s=>Number(typeof s==='number'||typeof s==='string'?s:(s.value??s.score??s.displayValue))).filter(Number.isFinite))}
+function parseDetailLines(detail,g){
+ const comps=detail?.header?.competitions?.[0]?.competitors||detail?.boxscore?.teams?.map(x=>x.team?{team:x.team,linescores:x.statistics?.linescores}:x)||[];
+ if(!comps.length)return false;
+ let found=false;
+ for(const t of g.teams){
+  const src=comps.find(x=>x.team?.displayName===t.name||x.team?.id===t.id||x.team?.abbreviation===t.abbr);
+  if(src&&Array.isArray(src.linescores)&&src.linescores.length){t.linescores=src.linescores;found=true}
+ }
+ return found;
+}
+async function enrichQuarterScores(g){
+ if(quarterScores(g).every(s=>s.length>=Math.min(4,Math.max(1,g.period-1))))return;
+ try{
+  const url='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event='+encodeURIComponent(g.id);
+  const sources=[url,'https://api.allorigins.win/raw?url='+encodeURIComponent(url)];
+  for(const src of sources){try{const response=await fetch(src,{cache:'no-store'});if(!response.ok)continue;const data=await response.json();if(parseDetailLines(data,g))break}catch(e){}}
+ }catch(e){}
+}
 function initialQuarterPin(g){/* Predictions begin at halftime only. */}
 function trackQuarter(g){
  if(!g.id||!g.teams||g.teams.length!==2)return;
@@ -105,13 +123,13 @@ async function load(){
  // omits season.type in some scoreboard payloads.
  const st=e.season?.type;
  if(st!=null&&Number(st)!==1&&e.season?.slug!=='preseason')continue;
- map.set(e.id,{id:e.id,date:e.date,final:!!e.status?.type?.completed,live:!!e.status?.type?.state&&e.status.type.state==='in',period:Number(e.status?.period||0),clock:e.status?.displayClock||'',teams:cs.map(t=>({name:t.team?.displayName,score:Number(t.score||0),linescores:t.linescores||[]}))})
+ map.set(e.id,{id:e.id,date:e.date,final:!!e.status?.type?.completed,live:!!e.status?.type?.state&&e.status.type.state==='in',period:Number(e.status?.period||0),clock:e.status?.displayClock||'',teams:cs.map(t=>({id:t.team?.id,abbr:t.team?.abbreviation,name:t.team?.displayName,score:Number(t.score||0),linescores:t.linescores||[]}))})
  }
  }
  $('status').textContent='Checked '+Math.min(i+6,dates.length)+'/'+dates.length+' dates; found '+map.size+' games…';
  }
  if(!success)throw Error('All score requests failed. The score provider may be blocking browser access.');
- games=[...map.values()];games.forEach(initialQuarterPin);games.forEach(trackQuarter);
+ games=[...map.values()];await Promise.all(games.filter(g=>g.live).map(enrichQuarterScores));games.forEach(initialQuarterPin);games.forEach(trackQuarter);
  $('status').textContent='Loaded '+games.length+' preseason games ('+success+' dates checked successfully'+(failed?', '+failed+' failed':'')+'). Updated '+new Date().toLocaleTimeString()+(games.length===0?' • ESPN returned '+eventsSeen+' events; no preseason games matched.':'');
  draw();await updateLive();
  }catch(err){$('status').textContent='Unable to retrieve scores: '+err.message;games=[];draw();$('future').textContent='Live schedule unavailable.'}
@@ -171,7 +189,7 @@ async function updateLive(){
  const g={id:e.id,date:e.date,final:!!e.status?.type?.completed,live:e.status?.type?.state==='in',period:Number(e.status?.period||0),clock:e.status?.displayClock||'',teams:cs.map(t=>({name:t.team?.displayName,score:Number(t.score||0),linescores:t.linescores||[]}))};
  const ix=games.findIndex(old=>old.id===g.id);if(ix>=0){const previous=games[ix];g.teams.forEach(t=>{if(!t.linescores.length){const old=previous.teams.find(v=>v.name===t.name);if(old?.linescores?.length)t.linescores=old.linescores}});games[ix]=g}else games.push(g);changed=true;
  }}
- if(changed){games.forEach(trackQuarter);lastLiveUpdate=new Date();draw()}
+ if(changed){await Promise.all(games.filter(g=>g.live).map(enrichQuarterScores));games.forEach(trackQuarter);lastLiveUpdate=new Date();draw()}
  }catch(e){}
 }
 function suggestedTeamLine(team,opponent,excludeId){
