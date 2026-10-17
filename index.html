@@ -2,8 +2,8 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NbaTr - NBA Preseason Tracker</title><style>
 *{box-sizing:border-box}body{margin:0;background:#091323;color:#eef6ff;font-family:system-ui,Arial,sans-serif}header{background:linear-gradient(110deg,#1450a0,#10213e);padding:25px 18px}main,header>div{max-width:1000px;margin:auto}main{padding:20px 14px}h1{margin:0}p,.sub{color:#b8c9df}.panel{background:#12243b;border:1px solid #29425e;border-radius:14px;padding:17px;margin-bottom:14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.gamesgrid{display:grid;grid-template-columns:1fr;gap:12px}.gamesgrid .panel{min-width:0}.prediction{margin-top:12px;padding:12px;background:#0a192b;border-radius:10px;border:1px solid #29425e}.prediction .num{font-size:23px}label{display:block;color:#b8c9df;font-size:13px;margin-bottom:5px}select,input,button{width:100%;background:#0a192b;color:#fff;border:1px solid #3a5676;border-radius:9px;padding:12px;font-size:16px}button{background:#1874d1;border:0;font-weight:700}.num{font-size:28px;font-weight:800}.green{color:#69e7aa}.red{color:#ffaaa8}.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid #2b4057}.row:last-child{border:0}.tiny{font-size:12px;color:#a7b9d0}.chip{background:#254362;border-radius:8px;padding:5px 8px;white-space:nowrap} .scoreline{font-size:17px;font-weight:800;margin:5px 0}.result{font-weight:800}.detail{font-size:12px;margin-top:4px}.win{color:#69e7aa}.loss{color:#ffaaa8}.tie{color:#ffd36b}.quartercard{margin:12px 0;padding:13px;background:#0a192b;border:1px solid #29425e;border-radius:10px}.quartercard strong{color:#b9e4ff}.tabbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}.tabbar button{width:auto;flex:1;min-width:135px;background:#203753}.tabbar button.active{background:#1874d1}.tabpage[hidden]{display:none!important}.livebox{border-left:3px solid #69e7aa;padding-left:12px;margin:12px 0}h2{font-size:19px;margin-top:0}#status{font-size:13px;color:#b9cce4;margin-top:12px}
 </style></head><body><header><div><h1>🏀 NbaTr</h1><p>NBA preseason • Team score trends • Over / Under</p></div></header><main>
-<div class="panel"><h2>Team Total Analyzer</h2><div class="grid"><div><label>NBA team</label><select id="team"></select></div><div><label>Team total line</label><input type="number" id="line" value="116.5" min="0" step=".5"></div><div><label>Recent games</label><select id="limit"><option>3</option><option selected>5</option><option>10</option><option>20</option></select></div></div><p><button id="refresh">Refresh Scores</button></p><div id="status">Loading verified NBA data…</div></div>
-<nav class="tabbar" aria-label="Game views"><button id="tabUpcoming" class="active" type="button">📅 Upcoming</button><button id="tabLive" type="button">🔴 Live Predictions</button><button id="tabQuarter" type="button">🎯 Quarter Win Rate</button><button id="tabHistory" type="button">📊 Previous Games</button></nav><section id="pageUpcoming" class="tabpage"><div class="panel"><h2>Upcoming Preseason Matchups</h2><div id="future">Loading…</div></div></section><section id="pageLive" class="tabpage" hidden><div class="panel"><h2>🔴 Currently Live Games & Predictions</h2><p class="tiny">Updates approximately every 60 seconds while this page is open, subject to score feed availability.</p><div id="liveGames">Checking live games…</div></div></section><section id="pageQuarter" class="tabpage" hidden><div class="panel"><h2>🎯 Pinned Quarter Predictions & Accuracy</h2><p class="tiny">A prediction for the next quarter is saved when the previous quarter ends. It stays unchanged. After the next quarter finishes, actual points and the prediction result are compared. Team quarter win rate = quarters won divided by tracked completed quarters. Scoring share = each team's portion of actual combined quarter points. Neither is a future win probability.</p><label for="quarterLine">Individual team full-game points line (Over / Under)</label><input id="quarterLine" type="number" min="0" step=".5" value="116.5"><p class="tiny">Each team is evaluated separately against the same adjustable team-points line. Predictions stay pinned after each quarter.</p><div id="quarterPredictions">Waiting for live quarter data…</div></div></section><section id="pageHistory" class="tabpage" hidden><div id="stats" class="grid"></div><div class="panel"><h2>Team Win Rate History</h2><div id="teamWinHistory">Loading…</div></div><div class="panel"><h2>Recent Preseason Games</h2><div id="recent">Loading…</div></div></section>
+<div class="panel"><h2>Team Total Analyzer</h2><div class="grid"><div><label>NBA team</label><select id="team"></select></div><div><label>Recent games</label><select id="limit"><option>3</option><option selected>5</option><option>10</option><option>20</option></select></div></div><p><button id="refresh">Refresh Scores</button></p><div id="status">Loading verified NBA data…</div></div>
+<nav class="tabbar" aria-label="Game views"><button id="tabUpcoming" class="active" type="button">📅 Upcoming</button><button id="tabLive" type="button">🔴 Live Predictions</button><button id="tabQuarter" type="button">🎯 Quarter Win Rate</button><button id="tabHistory" type="button">📊 Previous Games</button></nav><section id="pageUpcoming" class="tabpage"><div class="panel"><h2>Upcoming Preseason Matchups</h2><div id="future">Loading…</div></div></section><section id="pageLive" class="tabpage" hidden><div class="panel"><h2>🔴 Currently Live Games & Predictions</h2><p class="tiny">Updates approximately every 60 seconds while this page is open, subject to score feed availability.</p><div id="liveGames">Checking live games…</div></div></section><section id="pageQuarter" class="tabpage" hidden><div class="panel"><h2>🎯 Pinned Quarter Predictions & Accuracy</h2><p class="tiny">Q3 and Q4 cumulative predictions are saved together at halftime. It stays unchanged. After the next quarter finishes, actual points and the prediction result are compared. Team quarter win rate = quarters won divided by tracked completed quarters. Scoring share = each team's portion of actual combined quarter points. Neither is a future win probability.</p><label for="quarterLine">Individual team full-game points line (Over / Under)</label><input id="quarterLine" type="number" min="0" step=".5" value="116.5"><p class="tiny">Each team is evaluated separately against the same adjustable team-points line. Predictions stay pinned after each quarter.</p><div id="quarterPredictions">Waiting for live quarter data…</div></div></section><section id="pageHistory" class="tabpage" hidden><div id="stats" class="grid"></div><div class="panel"><h2>Team Win Rate History</h2><div id="teamWinHistory">Loading…</div></div><div class="panel"><h2>Recent Preseason Games</h2><div id="recent">Loading…</div></div></section>
 <div class="panel"><h2>About the numbers</h2><p>Over and Under rates describe how often a team scored above or below the selected line in its recent completed preseason games. They are not probabilities or guarantees for future matches. Preseason rotations, roster changes and small samples limit predictive value.</p><p class="tiny">Data from ESPN's public NBA scoreboard endpoint, subject to availability. Scores are not fabricated when data cannot be fetched. This site does not place bets.</p></div></main><script>
 const names=['Atlanta Hawks','Boston Celtics','Brooklyn Nets','Charlotte Hornets','Chicago Bulls','Cleveland Cavaliers','Dallas Mavericks','Denver Nuggets','Detroit Pistons','Golden State Warriors','Houston Rockets','Indiana Pacers','LA Clippers','Los Angeles Lakers','Memphis Grizzlies','Miami Heat','Milwaukee Bucks','Minnesota Timberwolves','New Orleans Pelicans','New York Knicks','Oklahoma City Thunder','Orlando Magic','Philadelphia 76ers','Phoenix Suns','Portland Trail Blazers','Sacramento Kings','San Antonio Spurs','Toronto Raptors','Utah Jazz','Washington Wizards'];
 const $=id=>document.getElementById(id);$('team').innerHTML=names.map(n=>'<option>'+n+'</option>').join('');$('team').value='Boston Celtics';
@@ -11,70 +11,52 @@ let games=[];let lastLiveUpdate=null;
 let pinned={};try{pinned=JSON.parse(localStorage.getItem('nbatr-pinned-quarters-v1')||'{}')}catch(e){pinned={}}
 function savePins(){try{localStorage.setItem('nbatr-pinned-quarters-v1',JSON.stringify(pinned))}catch(e){}}
 function quarterScores(g){return g.teams.map(t=>Array.isArray(t.linescores)?t.linescores.map(s=>Number(s.value??s.score??s.displayValue??0)):[])}
-function initialQuarterPin(g){
- if(!g.id||!g.teams||g.teams.length!==2)return;
- const key=String(g.id),entry=pinned[key]||{teams:g.teams.map(t=>t.name),quarters:{}};
- if(entry.quarters[1])return;
- // Only lock a Q1 forecast before play; never backfill a prediction using Q1 results.
- if(g.final||g.period>1||g.live&&g.period===1&&g.teams.some(t=>t.score>0))return;
- const averages=g.teams.map(t=>{
-  const samples=games.filter(x=>x.final&&x.id!==g.id&&x.teams.some(y=>y.name===t.name));
-  const values=samples.map(x=>{const s=x.teams.find(y=>y.name===t.name);return Number(s.linescores?.[0]?.value??s.linescores?.[0]?.score??s.linescores?.[0]?.displayValue)}).filter(Number.isFinite);
-  return values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):null;
- });
- if(averages.some(v=>v===null))return;
- const lines=g.teams.map((t,i)=>suggestedTeamLine(t.name,g.teams[1-i].name,g.id)?.line??null);
- entry.quarters[1]={pred:averages,cumulativePred:[...averages],baseline:[0,0],actual:null,lockedAt:'Before Q1',startLines:lines};
- pinned[key]=entry;savePins();
-}
+function initialQuarterPin(g){/* Predictions begin at halftime only. */}
 function trackQuarter(g){
  if(!g.id||!g.teams||g.teams.length!==2)return;
- const scores=quarterScores(g);if(scores.some(s=>!s.length))return;
+ const scores=quarterScores(g);if(scores.some(s=>s.length<2))return;
+ // Halftime must have finished. Never backfill if the first observation is after Q3.
+ if(!g.final&&g.period<3)return;
  const key=String(g.id),entry=pinned[key]||{teams:g.teams.map(t=>t.name),quarters:{}};
- // A quarter's actual score is final only after the feed advances to the next period,
- // or when the whole game is final.
- const complete=g.final?Math.min(4,scores[0].length,scores[1].length):Math.min(4,Math.max(0,g.period-1),scores[0].length,scores[1].length);
- for(let q=1;q<=complete;q++){
-  const actual=[scores[0][q-1],scores[1][q-1]];
-  if(actual.every(Number.isFinite)){
-   if(entry.quarters[q]?.pred&&!entry.quarters[q].actual)entry.quarters[q].actual=actual;
-   if(q<4&&!entry.quarters[q+1]){
-    const observedA=scores[0].slice(0,q),observedB=scores[1].slice(0,q);
-    const mean=s=>s.reduce((a,b)=>a+b,0)/s.length;
-    const avgA=mean(observedA),avgB=mean(observedB);
-    const hist=games.filter(other=>other.final&&other.id!==g.id&&other.teams.some(t=>t.name===g.teams[0].name)&&other.teams.some(t=>t.name===g.teams[1].name));
-    const histTotal=hist.length?hist.reduce((s,other)=>s+other.teams[0].score+other.teams[1].score,0)/hist.length:null;
-    const observedTotal=scores[0].slice(0,q).reduce((s,v)=>s+v,0)+scores[1].slice(0,q).reduce((s,v)=>s+v,0);
-    const paceFinal=observedTotal*4/q;
-    const projectedFinal=Math.round(histTotal===null?paceFinal:paceFinal*.7+histTotal*.3);
-    const histTeam=g.teams.map(t=>{const samples=games.filter(other=>other.final&&other.id!==g.id&&other.teams.some(o=>o.name===t.name));return samples.length?samples.reduce((sum,other)=>sum+other.teams.find(o=>o.name===t.name).score,0)/samples.length:null});
-    const projectedTeams=[0,1].map(i=>Math.round((scores[i].slice(0,q).reduce((s,v)=>s+v,0)*4/q)*.7+(histTeam[i]===null?scores[i].slice(0,q).reduce((s,v)=>s+v,0)*4/q:histTeam[i])*.3));
-    const cumulativeBefore=[observedA.reduce((s,v)=>s+v,0),observedB.reduce((s,v)=>s+v,0)];
-    const cumulativeNext=[Math.round(cumulativeBefore[0]+avgA),Math.round(cumulativeBefore[1]+avgB)];
-    entry.quarters[q+1]={pred:[Math.round(avgA),Math.round(avgB)],cumulativePred:cumulativeNext,baseline:cumulativeBefore,lockedAt:'End of Q'+q,actual:null,fullGamePred:projectedFinal,teamFinalPred:projectedTeams,lockedThrough:q,startLines:g.teams.map((t,i)=>suggestedTeamLine(t.name,g.teams[1-i].name,g.id)?.line??null)};
-
-   }
-  }
+ if(!entry.halftime&&g.period===3&&!g.final){
+  const halftime=scores.map(s=>s[0]+s[1]);
+  const historical=g.teams.map(t=>{
+   const past=games.filter(other=>other.final&&other.id!==g.id&&other.teams.some(v=>v.name===t.name));
+   return past.length?past.reduce((sum,other)=>sum+other.teams.find(v=>v.name===t.name).score,0)/past.length:null;
+  });
+  const forecasts=[0,1].map(i=>{
+   const pace=halftime[i]*2;
+   return Math.round(historical[i]===null?pace:.7*pace+.3*historical[i]);
+  });
+  const lines=g.teams.map((t,i)=>suggestedTeamLine(t.name,g.teams[1-i].name,g.id)?.line??null);
+  entry.halftime={scores:halftime,forecast:forecasts,lines,lockedAt:'Halftime'};
+  // Both Q3 and Q4 cumulative predictions are frozen at halftime.
+  entry.quarters={
+   3:{cumulativePred:forecasts.map((v,i)=>Math.round(halftime[i]+(v-halftime[i])/2)),baseline:halftime,lockedAt:'Halftime'},
+   4:{cumulativePred:[...forecasts],teamFinalPred:[...forecasts],baseline:halftime,lockedAt:'Halftime',startLines:lines}
+  };
+ }
+ if(!entry.halftime)return;
+ const complete=g.final?4:Math.max(0,g.period-1);
+ for(const q of [3,4]){
+  const record=entry.quarters[q];
+  if(q<=complete&&record&&!record.actual&&scores.every(s=>s.length>=q))
+   record.actual=scores.map(s=>s.slice(0,q).reduce((sum,v)=>sum+v,0));
  }
  pinned[key]=entry;savePins();
 }
 function quarterView(){
  const relevant=games.filter(g=>g.live||g.final).sort((a,b)=>new Date(b.date)-new Date(a.date));
  $('quarterPredictions').innerHTML=relevant.length?relevant.map(g=>{
-  const records=Object.entries(pinned[String(g.id)]?.quarters||{}).sort((a,b)=>Number(a[0])-Number(b[0]));
-  const scores=quarterScores(g);
-  const summary=g.teams.map((team,i)=>{
-   const judged=records.filter(([q,r])=>r.actual&&r.cumulativePred&&scores[i].length>=Number(q));
-   const hits=judged.filter(([q,r])=>Math.abs(r.cumulativePred[i]-scores[i].slice(0,Number(q)).reduce((a,b)=>a+b,0))<=5).length;
-   const first=records.find(([,r])=>Number.isFinite(r.startLines?.[i]));
-   const line=first?.[1]?.startLines?.[i];
-   const projected=records.filter(([,r])=>Number.isFinite(r.teamFinalPred?.[i])).slice(-1)[0]?.[1]?.teamFinalPred?.[i];
-   const overUnder=Number.isFinite(line)&&Number.isFinite(projected)?(projected>line?'OVER':projected<line?'UNDER':'PUSH'):'Not available';
-   return '<div class="quartercard"><strong>'+team.name+'</strong><div class="detail">Pinned prediction accuracy: <strong>'+(judged.length?(100*hits/judged.length).toFixed(1)+'% ('+hits+'/'+judged.length+')':'No settled predictions')+'</strong></div>'+
-   '<div class="detail">Start team line: '+(Number.isFinite(line)?line:'Unavailable')+'</div><div class="detail">Projected final points: '+(Number.isFinite(projected)?projected:'Unavailable')+'</div><div class="detail">Prediction vs start line: <strong>'+overUnder+'</strong></div></div>';
-  }).join('');
-  return '<div class="prediction"><strong>'+g.teams.map(t=>t.name).join(' vs ')+'</strong>'+summary+'<div class="tiny">Win rate here means historical pinned-score prediction accuracy (within ±5 points), not a probability of winning the match. Start lines remain fixed.</div></div>';
- }).join(''):'<p class="sub">No live or completed games available.</p>';
+ const entry=pinned[String(g.id)],records=[3,4].map(q=>[q,entry?.halftime?entry.quarters[q]:null]).filter(([,r])=>r);
+ const body=g.teams.map((team,i)=>{
+  const checked=records.filter(([,r])=>r.actual);
+  const hits=checked.filter(([,r])=>Math.abs(r.cumulativePred[i]-r.actual[i])<=5).length;
+  const final=entry?.halftime?.forecast[i],line=entry?.halftime?.lines[i];
+  return '<div class="quartercard"><strong>'+team.name+'</strong><div class="detail">Prediction accuracy: '+(checked.length?(100*hits/checked.length).toFixed(1)+'% ('+hits+'/'+checked.length+')':'Not yet available')+'</div><div class="detail">Pinned final score: '+(Number.isFinite(final)?final:'Awaiting halftime')+'</div><div class="detail">Original team line: '+(Number.isFinite(line)?line:'Unavailable')+'</div><div class="detail">Prediction: '+(Number.isFinite(final)&&Number.isFinite(line)?final>line?'OVER':final<line?'UNDER':'PUSH':'Unavailable')+'</div></div>';
+ }).join('');
+ return '<div class="prediction"><strong>'+g.teams.map(t=>t.name).join(' vs ')+'</strong>'+body+'<div class="tiny">Accuracy is the share of pinned cumulative team predictions within ±5 points of the actual score, not the probability of winning.</div></div>';
+ }).join(''):'<p class="sub">No live games or results available.</p>';
 }
 const day=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
 async function fetchScores(url){
@@ -122,22 +104,20 @@ async function load(){
 }
 
 function liveQuarterStats(g){
- const scores=quarterScores(g),records=Object.entries(pinned[String(g.id)]?.quarters||{}).sort((a,b)=>Number(a[0])-Number(b[0]));
- let html='<div class="prediction"><strong>🏀 Live Quarter Predictions · Cumulative Team Points</strong>';
- if(!records.length)return html+'<div class="tiny">No pre-quarter forecast was captured yet. Predictions are only pinned using information available before that quarter.</div></div>';
- for(const [q,r] of records){
-  const n=Number(q),cum=r.cumulativePred,actual=r.actual&&scores.every(s=>s.length>=n)?scores.map(s=>s.slice(0,n).reduce((a,b)=>a+b,0)):null;
-  if(!cum)continue;
-  html+='<div class="quartercard"><strong>🔒 Q'+q+' predicted cumulative score</strong>';
+ const entry=pinned[String(g.id)],scores=quarterScores(g);
+ if(!entry?.halftime)return '<div class="prediction"><strong>Halftime Prediction</strong><div class="tiny">Waiting for halftime. Predictions for Q3 and Q4 will be pinned together.</div></div>';
+ let html='<div class="prediction"><strong>🔒 Halftime-Locked Team Predictions</strong>';
+ for(const q of [3,4]){
+  const r=entry.quarters[q];if(!r)continue;
+  html+='<div class="quartercard"><strong>End of Q'+q+' cumulative team scores</strong>';
   for(let i=0;i<2;i++){
-   const line=r.startLines?.[i],value=cum[i],result=actual?Math.abs(value-actual[i])<=5:null;
-   html+='<div class="detail">'+g.teams[i].name+': <strong>'+value+' pts</strong> ('+(r.baseline?.[i]||0)+' previous + '+r.pred[i]+' projected)</div>'+
-    (Number.isFinite(line)?'<div class="tiny">Original team line '+line+': '+(value<line?'UNDER':value>line?'OVER':'PUSH')+' at end of Q'+q+'</div>':'')+
-    (actual?'<div class="detail '+(result?'green':'red')+'">Actual cumulative: '+actual[i]+' · '+(result?'CORRECT':'INCORRECT')+' (±5 pts)</div>':'<div class="tiny">Pinned; waiting for Q'+q+' to finish.</div>');
-  }
-  html+='</div>';
+   const predicted=r.cumulativePred[i],actual=r.actual?.[i],line=entry.halftime.lines[i];
+   html+='<div class="detail">'+g.teams[i].name+': <strong>'+predicted+' pts</strong> (includes Q1 and Q2)</div>'+
+   (q===4&&Number.isFinite(line)?'<div class="tiny">Team total line '+line+': '+(predicted>line?'OVER':predicted<line?'UNDER':'PUSH')+'</div>':'')+
+   (actual!==undefined?'<div class="detail '+(Math.abs(actual-predicted)<=5?'green':'red')+'">Actual '+actual+' · '+(Math.abs(actual-predicted)<=5?'CORRECT':'INCORRECT')+' (±5 pts)</div>':'<div class="tiny">Awaiting end of Q'+q+'</div>');
+  }html+='</div>';
  }
- return html+'<div class="tiny">All quarter forecasts are pinned and not revised after locking. Accuracy uses a ±5-point tolerance per team.</div></div>';
+ return html+'<div class="tiny">Q3 and Q4 projections were both pinned at halftime; they do not update during the second half.</div></div>';
 }
 function liveCard(g){
  const [a,b]=g.teams,margin=a.score-b.score,period=Math.max(1,Math.min(4,g.period||1));
@@ -219,11 +199,11 @@ function selectTab(which){
  if(which==='Live')updateLive();
 }
 for(const name of ['Upcoming','Live','Quarter','History'])$('tab'+name).onclick=()=>selectTab(name);$('quarterLine').oninput=quarterView;
-function draw(){quarterView();const completedGames=games.filter(g=>g.final);$('teamWinHistory').innerHTML=names.map(name=>{const sample=completedGames.filter(g=>g.teams.some(t=>t.name===name)),wins=sample.filter(g=>{const t=g.teams.find(t=>t.name===name),o=g.teams.find(t=>t.name!==name);return t.score>o.score}).length;return {name,wins,total:sample.length}}).filter(r=>r.total).sort((a,b)=>b.wins/b.total-a.wins/a.total).map(r=>'<div class="row"><div><strong>'+r.name+'</strong><div class="tiny">'+r.wins+' wins / '+r.total+' games</div></div><strong class="green">'+(100*r.wins/r.total).toFixed(1)+'%</strong></div>').join('')||'<p class="tiny">No completed games available.</p>';let team=$('team').value,line=Number($('line').value),n=Number($('limit').value);if(!Number.isFinite(line)||line<0)return;let recent=games.filter(g=>g.final&&g.teams.some(t=>t.name===team)).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,n),pts=recent.map(g=>g.teams.find(t=>t.name===team).score),o=pts.filter(p=>p>line).length,u=pts.filter(p=>p<line).length,p=pts.length-o-u,avg=pts.length?(pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1):'—';let margins=recent.map(g=>{const t=g.teams.find(t=>t.name===team),v=g.teams.find(t=>t.name!==team);return t.score-v.score}),wins=margins.filter(v=>v>0).length,losses=margins.filter(v=>v<0).length,ties=margins.filter(v=>v===0).length,avgMargin=margins.length?(margins.reduce((a,b)=>a+b,0)/margins.length).toFixed(1):'—';let card=(label,value,detail,cls='')=>'<div class="panel"><div class="sub">'+label+'</div><div class="num '+cls+'">'+value+'</div><div class="tiny">'+detail+'</div></div>';$('stats').innerHTML=card('Average team points',avg,pts.length+' games')+card('Over '+line,pts.length?o+'/'+pts.length:'—',pts.length?Math.round(o/pts.length*100)+'% historical rate':'No data','green')+card('Under '+line,pts.length?u+'/'+pts.length:'—',pts.length?Math.round(u/pts.length*100)+'% historical rate':'No data','red')+card('Push',p,'Exactly equal to line')+card('Win / Loss',wins+' - '+losses,ties+' ties in '+recent.length+' games')+card('Average score margin',avgMargin,'Team points minus opponent points',Number(avgMargin)>0?'green':Number(avgMargin)<0?'red':'');
+function draw(){quarterView();const completedGames=games.filter(g=>g.final);$('teamWinHistory').innerHTML=names.map(name=>{const sample=completedGames.filter(g=>g.teams.some(t=>t.name===name)),wins=sample.filter(g=>{const t=g.teams.find(t=>t.name===name),o=g.teams.find(t=>t.name!==name);return t.score>o.score}).length;return {name,wins,total:sample.length}}).filter(r=>r.total).sort((a,b)=>b.wins/b.total-a.wins/a.total).map(r=>'<div class="row"><div><strong>'+r.name+'</strong><div class="tiny">'+r.wins+' wins / '+r.total+' games</div></div><strong class="green">'+(100*r.wins/r.total).toFixed(1)+'%</strong></div>').join('')||'<p class="tiny">No completed games available.</p>';let team=$('team').value,n=Number($('limit').value),line=suggestedTeamLine(team,null)?.line??0;if(!Number.isFinite(line)||line<0)return;let recent=games.filter(g=>g.final&&g.teams.some(t=>t.name===team)).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,n),pts=recent.map(g=>g.teams.find(t=>t.name===team).score),o=pts.filter(p=>p>line).length,u=pts.filter(p=>p<line).length,p=pts.length-o-u,avg=pts.length?(pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1):'—';let margins=recent.map(g=>{const t=g.teams.find(t=>t.name===team),v=g.teams.find(t=>t.name!==team);return t.score-v.score}),wins=margins.filter(v=>v>0).length,losses=margins.filter(v=>v<0).length,ties=margins.filter(v=>v===0).length,avgMargin=margins.length?(margins.reduce((a,b)=>a+b,0)/margins.length).toFixed(1):'—';let card=(label,value,detail,cls='')=>'<div class="panel"><div class="sub">'+label+'</div><div class="num '+cls+'">'+value+'</div><div class="tiny">'+detail+'</div></div>';$('stats').innerHTML=card('Average team points',avg,pts.length+' games')+card('Over '+line,pts.length?o+'/'+pts.length:'—',pts.length?Math.round(o/pts.length*100)+'% historical rate':'No data','green')+card('Under '+line,pts.length?u+'/'+pts.length:'—',pts.length?Math.round(u/pts.length*100)+'% historical rate':'No data','red')+card('Push',p,'Exactly equal to line')+card('Win / Loss',wins+' - '+losses,ties+' ties in '+recent.length+' games')+card('Average score margin',avgMargin,'Team points minus opponent points',Number(avgMargin)>0?'green':Number(avgMargin)<0?'red':'');
 $('recent').innerHTML=recent.length?recent.map(g=>{let t=g.teams.find(t=>t.name===team),other=g.teams.find(t=>t.name!==team),margin=t.score-other.score,result=margin>0?'WIN':margin<0?'LOSS':'TIE',color=margin>0?'win':margin<0?'loss':'tie',ou=t.score>line?'OVER':t.score<line?'UNDER':'PUSH';return '<div class="row"><div><div class="tiny">'+new Date(g.date).toLocaleDateString()+' • FINAL</div><div class="scoreline">'+t.name+' '+t.score+' – '+other.score+' '+other.name+'</div><div class="detail"><span class="result '+color+'">'+result+'</span> • Margin: '+(margin>0?'+':'')+margin+' pts • Team total: '+ou+' '+line+'</div></div><span class="chip '+color+'">'+result+'</span></div>'}).join(''):'<p class="sub">No completed preseason games found.</p>';
 const active=games.filter(g=>g.live&&!g.final).sort((a,b)=>new Date(a.date)-new Date(b.date));
  $('liveGames').innerHTML=active.length?active.map(g=>'<div class="livebox">'+liveCard(g)+'<div class="tiny">Live estimate updates with available scores; not a validated prediction.</div></div>').join(''):'<p class="sub">No live NBA preseason games available right now. The score feed may be unavailable or no games may be in progress.</p>';
  let future=games.filter(g=>!g.final&&!g.live).sort((a,b)=>new Date(a.date)-new Date(b.date));$('future').innerHTML=future.length?future.map(g=>{const a=g.teams[0].name,b=g.teams[1].name;return '<div class="row" style="display:block"><strong>'+a+' vs '+b+'</strong><div class="tiny">'+new Date(g.date).toLocaleString('en-PH',{timeZone:'Asia/Manila',year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>'+(g.live?liveCard(g):projectionFor(a,b))+'</div>'}).join(''):'<p class="sub">No upcoming preseason matchups available from the score feed.</p>'}
 
-$('team').onchange=draw;$('line').oninput=draw;$('limit').onchange=draw;$('refresh').onclick=load;load();setInterval(updateLive,60000);
+$('team').onchange=draw;$('limit').onchange=draw;$('refresh').onclick=load;load();setInterval(updateLive,60000);
 </script></body></html>
