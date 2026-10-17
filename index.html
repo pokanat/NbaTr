@@ -95,6 +95,22 @@ async function load(){
  finally{$('refresh').disabled=false}
 }
 
+function liveQuarterStats(g){
+ const scores=quarterScores(g),complete=Math.min(4,Math.max(0,g.period-1),scores[0].length,scores[1].length);
+ const records=Object.entries(pinned[String(g.id)]?.quarters||{});
+ const settled=records.filter(([,r])=>Array.isArray(r.actual));
+ const hits=settled.filter(([,r])=>Math.sign(r.pred[0]-r.pred[1])===Math.sign(r.actual[0]-r.actual[1])).length;
+ let html='<div class="prediction"><strong>🏆 Live Quarter Points & Win Rates</strong>';
+ if(complete){
+  const wins=[0,0],pts=[0,0];
+  for(let q=0;q<complete;q++){const a=scores[0][q],b=scores[1][q];pts[0]+=a;pts[1]+=b;if(a>b)wins[0]++;else if(b>a)wins[1]++}
+  for(let i=0;i<2;i++)html+='<div class="detail">'+g.teams[i].name+': <strong class="green">'+(100*wins[i]/complete).toFixed(1)+'% quarter win rate</strong> ('+wins[i]+'/'+complete+') · '+pts[i]+' pts · '+(pts[0]+pts[1]?(100*pts[i]/(pts[0]+pts[1])).toFixed(1):'0.0')+'% scoring share</div>';
+ }else html+='<div class="tiny">Waiting for completed Q1 scoring data.</div>';
+ const next=records.filter(([q,r])=>!r.actual).sort((a,b)=>Number(a[0])-Number(b[0]))[0];
+ if(next){const [q,r]=next;html+='<div class="quartercard"><strong>🔒 Pinned Q'+q+' Prediction</strong><div class="detail">'+g.teams[0].name+' '+r.pred[0]+' – '+r.pred[1]+' '+g.teams[1].name+'</div><div class="detail">Predicted quarter total: '+(r.pred[0]+r.pred[1])+' pts</div><div class="tiny">Locked after Q'+(Number(q)-1)+' and unchanged during play.</div></div>'}
+ html+='<div class="detail">Pinned quarter winner accuracy: '+(settled.length?(100*hits/settled.length).toFixed(1)+'% ('+hits+'/'+settled.length+')':'Not yet available')+'</div><div class="tiny">Historical quarter win rates are not future win probabilities.</div></div>';
+ return html;
+}
 function liveCard(g){
  const [a,b]=g.teams,margin=a.score-b.score,period=Math.max(1,Math.min(4,g.period||1));
  const clockParts=String(g.clock||'12:00').split(':');
@@ -116,7 +132,7 @@ function liveCard(g){
  }else if(g.live&&!g.final){projection='<div class="tiny">Quarter-end projection available after 2 minutes of play.</div>'}
  return '<div class="prediction"><strong class="'+(g.final?'green':'red')+'">'+label+'</strong><div class="scoreline">'+a.name+' '+a.score+' – '+b.score+' '+b.name+'</div>'+
  (g.final?'<div class="detail">Result: '+(margin>0?a.name+' WIN':margin<0?b.name+' WIN':'TIE')+' · Final margin '+Math.abs(margin)+' pts</div>':
- '<div class="detail">Live estimated win chance: <strong>'+a.name+' '+p.toFixed(0)+'%</strong> · <strong>'+b.name+' '+(100-p).toFixed(0)+'%</strong></div><div class="tiny">Experimental score/time-based estimate, not an official or validated probability.</div>'+projection)+'</div>';
+ '<div class="detail">Live estimated win chance: <strong>'+a.name+' '+p.toFixed(0)+'%</strong> · <strong>'+b.name+' '+(100-p).toFixed(0)+'%</strong></div><div class="tiny">Experimental score/time-based estimate, not an official or validated probability.</div>'+projection+liveQuarterStats(g))+'</div>';
 }
 async function updateLive(){
  try{
