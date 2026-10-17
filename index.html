@@ -11,6 +11,22 @@ let games=[];let lastLiveUpdate=null;
 let pinned={};try{pinned=JSON.parse(localStorage.getItem('nbatr-pinned-quarters-v1')||'{}')}catch(e){pinned={}}
 function savePins(){try{localStorage.setItem('nbatr-pinned-quarters-v1',JSON.stringify(pinned))}catch(e){}}
 function quarterScores(g){return g.teams.map(t=>Array.isArray(t.linescores)?t.linescores.map(s=>Number(s.value??s.score??s.displayValue??0)):[])}
+function initialQuarterPin(g){
+ if(!g.id||!g.teams||g.teams.length!==2)return;
+ const key=String(g.id),entry=pinned[key]||{teams:g.teams.map(t=>t.name),quarters:{}};
+ if(entry.quarters[1])return;
+ // Only lock a Q1 forecast before play; never backfill a prediction using Q1 results.
+ if(g.final||g.period>1||g.live&&g.period===1&&g.teams.some(t=>t.score>0))return;
+ const averages=g.teams.map(t=>{
+  const samples=games.filter(x=>x.final&&x.id!==g.id&&x.teams.some(y=>y.name===t.name));
+  const values=samples.map(x=>{const s=x.teams.find(y=>y.name===t.name);return Number(s.linescores?.[0]?.value??s.linescores?.[0]?.score??s.linescores?.[0]?.displayValue)}).filter(Number.isFinite);
+  return values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):null;
+ });
+ if(averages.some(v=>v===null))return;
+ const lines=g.teams.map((t,i)=>suggestedTeamLine(t.name,g.teams[1-i].name,g.id)?.line??null);
+ entry.quarters[1]={pred:averages,cumulativePred:[...averages],baseline:[0,0],actual:null,lockedAt:'Before Q1',startLines:lines};
+ pinned[key]=entry;savePins();
+}
 function trackQuarter(g){
  if(!g.id||!g.teams||g.teams.length!==2)return;
  const scores=quarterScores(g);if(scores.some(s=>!s.length))return;
@@ -35,7 +51,7 @@ function trackQuarter(g){
     const projectedTeams=[0,1].map(i=>Math.round((scores[i].slice(0,q).reduce((s,v)=>s+v,0)*4/q)*.7+(histTeam[i]===null?scores[i].slice(0,q).reduce((s,v)=>s+v,0)*4/q:histTeam[i])*.3));
     const cumulativeBefore=[observedA.reduce((s,v)=>s+v,0),observedB.reduce((s,v)=>s+v,0)];
     const cumulativeNext=[Math.round(cumulativeBefore[0]+avgA),Math.round(cumulativeBefore[1]+avgB)];
-    entry.quarters[q+1]={pred:[Math.round(avgA),Math.round(avgB)],cumulativePred:cumulativeNext,baseline:cumulativeBefore,lockedAt:'End of Q'+q,actual:null,fullGamePred:projectedFinal,teamFinalPred:projectedTeams,lockedThrough:q};
+    entry.quarters[q+1]={pred:[Math.round(avgA),Math.round(avgB)],cumulativePred:cumulativeNext,baseline:cumulativeBefore,lockedAt:'End of Q'+q,actual:null,fullGamePred:projectedFinal,teamFinalPred:projectedTeams,lockedThrough:q,startLines:g.teams.map((t,i)=>suggestedTeamLine(t.name,g.teams[1-i].name,g.id)?.line??null)};
 
    }
   }
@@ -43,37 +59,22 @@ function trackQuarter(g){
  pinned[key]=entry;savePins();
 }
 function quarterView(){
- const line=Number($('quarterLine').value),valid=$('quarterLine').value!==''&&Number.isFinite(line)&&line>=0;
  const relevant=games.filter(g=>g.live||g.final).sort((a,b)=>new Date(b.date)-new Date(a.date));
  $('quarterPredictions').innerHTML=relevant.length?relevant.map(g=>{
- const scores=quarterScores(g),records=Object.entries(pinned[String(g.id)]?.quarters||{}).sort((a,b)=>Number(a[0])-Number(b[0]));
- const suggested=g.teams.map((t,i)=>suggestedTeamLine(t.name,g.teams[1-i].name,g.id));
- const rows=records.map(([q,r])=>{
- const n=Number(q),baseline=r.baseline||[0,0],cumulative=r.cumulativePred||(Array.isArray(r.pred)?r.pred.map((v,i)=>v+baseline[i]):null);
- const actual=r.actual,actualCumulative=actual&&scores.every(s=>s.length>=n)?scores.map(s=>s.slice(0,n).reduce((sum,v)=>sum+v,0)):null;
- const predTotal=cumulative?cumulative[0]+cumulative[1]:null,actualTotal=actualCumulative?actualCumulative[0]+actualCumulative[1]:null;
- const teamLines=cumulative?g.teams.map((team,i)=>{
- const predicted=cumulative[i],finalForecast=r.teamFinalPred?.[i],real=actualCumulative?.[i];
- return '<div class="quartercard"><strong>'+team.name+'</strong><div class="detail">🔒 Predicted score by end of Q'+q+': <strong>'+predicted+'</strong> pts</div>'+
- '<div class="tiny">Includes points from Q1 through Q'+q+' (not only Q'+q+').</div>'+
- (real!==undefined?'<div class="detail">Actual cumulative score: '+real+' · Error '+Math.abs(predicted-real)+' pts</div>':'<div class="tiny">Awaiting end of quarter</div>')+
- (Number.isFinite(finalForecast)?'<div class="detail">Pinned projected FINAL team points: '+finalForecast+'</div>':'')+
- (Number.isFinite(finalForecast)&&suggested[i]?'<div class="detail">Suggested line '+suggested[i].line.toFixed(1)+' ('+suggested[i].source+'): <strong>'+(finalForecast<suggested[i].line?'UNDER':finalForecast>suggested[i].line?'OVER':'PUSH')+'</strong></div>':'')+
- (g.final&&Number.isFinite(finalForecast)?'<div class="detail">Actual final team points: '+team.score+' · Error '+Math.abs(team.score-finalForecast)+'</div>':'')+'</div>';
- }).join(''):'<div class="tiny">Legacy pin has no cumulative forecast; new pins will include previous-quarter points.</div>';
- const correct=predTotal!==null&&actualTotal!==null?Math.abs(predTotal-actualTotal)<=5:null;
- return '<div class="prediction"><strong>🔒 Locked after Q'+(n-1)+' · End of Q'+q+' cumulative prediction</strong>'+
- (predTotal!==null?'<div class="detail">Predicted cumulative combined points: '+predTotal+'</div>':'')+
- (actualTotal!==null?'<div class="detail">Actual cumulative combined points: '+actualTotal+'</div><div class="detail '+(correct?'green':'red')+'">Total prediction '+(correct?'CORRECT':'INCORRECT')+' (within ±5 points) · Error '+Math.abs(predTotal-actualTotal)+' pts</div>':'')+
- teamLines+'</div>';
- }).join('');
- const settled=records.filter(([q,r])=>r.actual&&r.cumulativePred&&scores.every(s=>s.length>=Number(q)));
- const hits=settled.filter(([q,r])=>{const n=Number(q),actual=scores.reduce((sum,s)=>sum+s.slice(0,n).reduce((v,p)=>v+p,0),0);return Math.abs(r.cumulativePred[0]+r.cumulativePred[1]-actual)<=5}).length;
- return '<div class="prediction"><strong>'+g.teams.map(t=>t.name).join(' vs ')+'</strong><div class="detail">Live scores: '+g.teams.map(t=>t.score).join(' – ')+'</div>'+
- '<div class="detail">Cumulative total prediction accuracy (±5 pts): '+(settled.length?(100*hits/settled.length).toFixed(1)+'% ('+hits+'/'+settled.length+')':'No completed pinned predictions')+'</div>'+
- (rows||'<div class="tiny">Waiting for Q1 to finish. The Q2 forecast will include all Q1 points.</div>')+
- '<div class="tiny">Accuracy uses an explicitly defined ±5-point tolerance, not a probability of winning. Pinned predictions are not changed after creation.</div></div>';
- }).join(''):'<p class="sub">No live or completed games loaded.</p>';
+  const records=Object.entries(pinned[String(g.id)]?.quarters||{}).sort((a,b)=>Number(a[0])-Number(b[0]));
+  const scores=quarterScores(g);
+  const summary=g.teams.map((team,i)=>{
+   const judged=records.filter(([q,r])=>r.actual&&r.cumulativePred&&scores[i].length>=Number(q));
+   const hits=judged.filter(([q,r])=>Math.abs(r.cumulativePred[i]-scores[i].slice(0,Number(q)).reduce((a,b)=>a+b,0))<=5).length;
+   const first=records.find(([,r])=>Number.isFinite(r.startLines?.[i]));
+   const line=first?.[1]?.startLines?.[i];
+   const projected=records.filter(([,r])=>Number.isFinite(r.teamFinalPred?.[i])).slice(-1)[0]?.[1]?.teamFinalPred?.[i];
+   const overUnder=Number.isFinite(line)&&Number.isFinite(projected)?(projected>line?'OVER':projected<line?'UNDER':'PUSH'):'Not available';
+   return '<div class="quartercard"><strong>'+team.name+'</strong><div class="detail">Pinned prediction accuracy: <strong>'+(judged.length?(100*hits/judged.length).toFixed(1)+'% ('+hits+'/'+judged.length+')':'No settled predictions')+'</strong></div>'+
+   '<div class="detail">Start team line: '+(Number.isFinite(line)?line:'Unavailable')+'</div><div class="detail">Projected final points: '+(Number.isFinite(projected)?projected:'Unavailable')+'</div><div class="detail">Prediction vs start line: <strong>'+overUnder+'</strong></div></div>';
+  }).join('');
+  return '<div class="prediction"><strong>'+g.teams.map(t=>t.name).join(' vs ')+'</strong>'+summary+'<div class="tiny">Win rate here means historical pinned-score prediction accuracy (within ±5 points), not a probability of winning the match. Start lines remain fixed.</div></div>';
+ }).join(''):'<p class="sub">No live or completed games available.</p>';
 }
 const day=d=>d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
 async function fetchScores(url){
@@ -113,7 +114,7 @@ async function load(){
  $('status').textContent='Checked '+Math.min(i+6,dates.length)+'/'+dates.length+' dates; found '+map.size+' games…';
  }
  if(!success)throw Error('All score requests failed. The score provider may be blocking browser access.');
- games=[...map.values()];games.forEach(trackQuarter);
+ games=[...map.values()];games.forEach(initialQuarterPin);games.forEach(trackQuarter);
  $('status').textContent='Loaded '+games.length+' preseason games ('+success+' dates checked successfully'+(failed?', '+failed+' failed':'')+'). Updated '+new Date().toLocaleTimeString()+(games.length===0?' • ESPN returned '+eventsSeen+' events; no preseason games matched.':'');
  draw();await updateLive();
  }catch(err){$('status').textContent='Unable to retrieve scores: '+err.message;games=[];draw();$('future').textContent='Live schedule unavailable.'}
@@ -121,20 +122,22 @@ async function load(){
 }
 
 function liveQuarterStats(g){
- const scores=quarterScores(g),complete=Math.min(4,Math.max(0,g.period-1),scores[0].length,scores[1].length);
- const records=Object.entries(pinned[String(g.id)]?.quarters||{});
- const settled=records.filter(([,r])=>Array.isArray(r.actual));
- const hits=settled.filter(([,r])=>Math.sign(r.pred[0]-r.pred[1])===Math.sign(r.actual[0]-r.actual[1])).length;
- let html='<div class="prediction"><strong>🏆 Live Quarter Points & Win Rates</strong>';
- if(complete){
-  const wins=[0,0],pts=[0,0];
-  for(let q=0;q<complete;q++){const a=scores[0][q],b=scores[1][q];pts[0]+=a;pts[1]+=b;if(a>b)wins[0]++;else if(b>a)wins[1]++}
-  for(let i=0;i<2;i++)html+='<div class="detail">'+g.teams[i].name+': <strong class="green">'+(100*wins[i]/complete).toFixed(1)+'% quarter win rate</strong> ('+wins[i]+'/'+complete+') · '+pts[i]+' pts · '+(pts[0]+pts[1]?(100*pts[i]/(pts[0]+pts[1])).toFixed(1):'0.0')+'% scoring share</div>';
- }else html+='<div class="tiny">Waiting for completed Q1 scoring data.</div>';
- const next=records.filter(([q,r])=>!r.actual).sort((a,b)=>Number(a[0])-Number(b[0]))[0];
- if(next){const [q,r]=next;html+='<div class="quartercard"><strong>🔒 Pinned Q'+q+' Prediction</strong><div class="detail">'+g.teams[0].name+' '+r.pred[0]+' – '+r.pred[1]+' '+g.teams[1].name+'</div><div class="detail">Predicted quarter total: '+(r.pred[0]+r.pred[1])+' pts</div><div class="tiny">Locked after Q'+(Number(q)-1)+' and unchanged during play.</div></div>'}
- html+='<div class="detail">Pinned quarter winner accuracy: '+(settled.length?(100*hits/settled.length).toFixed(1)+'% ('+hits+'/'+settled.length+')':'Not yet available')+'</div><div class="tiny">Historical quarter win rates are not future win probabilities.</div></div>';
- return html;
+ const scores=quarterScores(g),records=Object.entries(pinned[String(g.id)]?.quarters||{}).sort((a,b)=>Number(a[0])-Number(b[0]));
+ let html='<div class="prediction"><strong>🏀 Live Quarter Predictions · Cumulative Team Points</strong>';
+ if(!records.length)return html+'<div class="tiny">No pre-quarter forecast was captured yet. Predictions are only pinned using information available before that quarter.</div></div>';
+ for(const [q,r] of records){
+  const n=Number(q),cum=r.cumulativePred,actual=r.actual&&scores.every(s=>s.length>=n)?scores.map(s=>s.slice(0,n).reduce((a,b)=>a+b,0)):null;
+  if(!cum)continue;
+  html+='<div class="quartercard"><strong>🔒 Q'+q+' predicted cumulative score</strong>';
+  for(let i=0;i<2;i++){
+   const line=r.startLines?.[i],value=cum[i],result=actual?Math.abs(value-actual[i])<=5:null;
+   html+='<div class="detail">'+g.teams[i].name+': <strong>'+value+' pts</strong> ('+(r.baseline?.[i]||0)+' previous + '+r.pred[i]+' projected)</div>'+
+    (Number.isFinite(line)?'<div class="tiny">Original team line '+line+': '+(value<line?'UNDER':value>line?'OVER':'PUSH')+' at end of Q'+q+'</div>':'')+
+    (actual?'<div class="detail '+(result?'green':'red')+'">Actual cumulative: '+actual[i]+' · '+(result?'CORRECT':'INCORRECT')+' (±5 pts)</div>':'<div class="tiny">Pinned; waiting for Q'+q+' to finish.</div>');
+  }
+  html+='</div>';
+ }
+ return html+'<div class="tiny">All quarter forecasts are pinned and not revised after locking. Accuracy uses a ±5-point tolerance per team.</div></div>';
 }
 function liveCard(g){
  const [a,b]=g.teams,margin=a.score-b.score,period=Math.max(1,Math.min(4,g.period||1));
